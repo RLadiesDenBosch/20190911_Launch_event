@@ -1,0 +1,121 @@
+---
+title: "The Demo Questionnaire"
+author: "RLadies Den Bosch"
+date: "11-9-2019"
+output:
+  ioslides_presentation:
+    logo: R-LadiesGlobal_RBG_online_LogoWithText.png
+    css: styles.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(tidyverse)  # never go without it ;)
+library(readxl)     # for reading the answers in he excel
+library(knitr)
+
+color_rladies <- c(blackish = "#181818",
+                   greyish = "#D3D3D3",
+                   purplish = "#88398A",     # only this color is used
+                   white = "#FFFFFF",
+                   purpldarkish = "#562457")
+
+the_color_for_the_text <- "#A9C58B"    # thanks to https://www.sessions.edu/color-calculator/
+                                       # the color between purplish and white
+the_color_for_the_bars <- color_rladies["purplish"]
+
+```
+
+
+```{r functionsandso}
+
+plot_rladies_bar <- function(df){
+  # expects two columns: item and n,
+  # and from global a n_respondents
+  ggplot(data = df, aes(x = reorder(item, -n), y = n)) + 
+  geom_bar(stat = "identity", fill = the_color_for_the_bars) +
+  geom_text(aes(x = item,
+                y = 0,
+                label = paste(item,"(", n, "of", n_respondents,")")),
+            size = 5,
+            hjust = 0,
+            color = the_color_for_the_text,
+            fontface = "bold",
+            nudge_y = 0.1) +
+  geom_hline(yintercept = n_respondents,
+             color = color_rladies["purplish"],
+             size = 2) +
+  coord_flip() +
+  theme_void() +
+  theme(legend.position = "none") 
+}
+
+
+count_items <- function(df, n_items, var){
+  # var should be a string with a column name of df
+  # var is filled with max n_item comma separated items per cell
+  df %>%
+  select({{var}}) %>%
+  separate({{var}},
+           sep = ",",
+           into = paste("V",1:n_items)) %>%
+  gather(key = "V", value = "item") %>%
+  filter(!is.na(item)) %>%
+  mutate(item = str_trim(item)) %>%
+  count(item) 
+}
+
+```
+
+```{r gettingthedata}
+
+# read in from a local copy
+dAnswers <- read_xlsx(file.path("data",
+                                "Answers.xlsx")) %>%
+  # first line: headers, second line: left empty, maybe for layout purposes?
+  # delete it, by checking for a Timestamp
+  filter(!is.na(Timestamp)) %>%
+  # make a date from the Timestamp
+  mutate(date_respond = as.Date(Timestamp))
+
+
+#some calculations
+n_respondents <- nrow(dAnswers)
+min_date <- min(dAnswers$date_respond)
+max_date <- max(dAnswers$date_respond)
+
+```
+
+## `r n_respondents` respondents {#purplish}
+
+```{r}
+dAnswers %>%
+  ggplot(aes(x = date_respond)) +
+  geom_bar(fill = color_rladies["purplish"]) +
+  theme_minimal() +
+  labs(x = "date") +
+  theme(axis.text.x=element_text(size = 12),
+        axis.text.y=element_text(size = 12),
+        axis.ticks=element_blank(),
+        axis.title.x=element_text(size = 12),
+        axis.title.y=element_text(size = 12))
+```
+
+
+## Question 1
+
+```{r, fig.height=3}
+plot_rladies_bar(count_items(dAnswers,
+                             n_items = 3,     # maybe better, to have the n_items stacked somewhere
+                             "Question_1"))
+```
+
+## Question 2 
+
+```{r useofR, fig.height = 3}
+plot_rladies_bar(count_items(dAnswers,
+                             n_items = 4,
+                             "Question_2"))
+```
+
